@@ -1,6 +1,4 @@
-#define WIN32_LEAN_AND_MEAN 1
-#include <windows.h>
-#include "gl3.h"
+#include "glcorearb.h"
 
 static HWND g_window_handle;
 static HDC g_device_context;
