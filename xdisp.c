@@ -11,6 +11,9 @@ static unsigned g_window_resolution;
 static unsigned g_spacing;
 static unsigned g_block_size;
 static float g_projection_matrix[16];
+static int g_up, g_down, g_left, g_right;
+static int64_t g_counter_start;
+static double g_counter_frequency;
 
 static PFNGLATTACHSHADERPROC glAttachShader;
 static PFNGLBINDBUFFERPROC glBindBuffer;
@@ -25,6 +28,7 @@ static PFNGLDISABLEPROC glDisable;
 static PFNGLDISABLEVERTEXATTRIBARRAYPROC glDisableVertexAttribArray;
 static PFNGLDRAWARRAYSPROC glDrawArrays;
 static PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+static PFNGLFLUSHPROC glFlush;
 static PFNGLGENBUFFERSPROC glGenBuffers;
 static PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
 static PFNGLLINKPROGRAMPROC glLinkProgram;
@@ -59,6 +63,7 @@ static void init_gl()
     GetExt(PFNGLDISABLEVERTEXATTRIBARRAYPROC, glDisableVertexAttribArray);
     GetExt(PFNGLDRAWARRAYSPROC, glDrawArrays);
     GetExt(PFNGLENABLEVERTEXATTRIBARRAYPROC, glEnableVertexAttribArray);
+    GetExt(PFNGLFLUSHPROC, glFlush);
     GetExt(PFNGLGENBUFFERSPROC, glGenBuffers);
     GetExt(PFNGLGENVERTEXARRAYSPROC, glGenVertexArrays);
     GetExt(PFNGLLINKPROGRAMPROC, glLinkProgram);
@@ -91,8 +96,65 @@ static GLuint load_shader(const char* vertex_source, const char* fragment_source
     return program;
 }
 
-void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigned spacing, unsigned cr, unsigned cg, unsigned cb)
+static void key_down(int key)
 {
+    switch (key)
+    {
+        case VK_ESCAPE:
+            CloseWindow(g_window_handle);
+            break;
+        case VK_UP:
+            g_up = 1;
+            break;
+        case VK_DOWN:
+            g_down = 1;
+            break;
+        case VK_LEFT:
+            g_left = 1;
+            break;
+        case VK_RIGHT:
+            g_right = 1;
+            break;
+    }
+}
+
+static void key_up(int key)
+{
+    switch (key)
+    {
+        case VK_UP:
+            g_up = 0;
+            break;
+        case VK_DOWN:
+            g_down = 0;
+            break;
+        case VK_LEFT:
+            g_left = 0;
+            break;
+        case VK_RIGHT:
+            g_right = 0;
+            break;
+    }
+}
+
+static LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
+{
+    switch (message)
+    {
+    case WM_KEYDOWN:
+        key_down(wparam);
+        return 0;
+    case WM_KEYUP:
+        key_up(wparam);
+        return 0;
+    default:
+        return DefWindowProc(hwnd, message, wparam, lparam);
+    }
+}
+
+void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigned spacing, unsigned char cr, unsigned char cg, unsigned char cb)
+{
+    g_up, g_down, g_left, g_right = 0;
     HINSTANCE h = GetModuleHandle(NULL);
     WNDCLASS wc = {0};
     GLuint vao;
@@ -104,7 +166,7 @@ void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigne
     {
         sizeof(PIXELFORMATDESCRIPTOR),
         1,
-        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL,
         PFD_TYPE_RGBA,            //The kind of framebuffer. RGBA or palette.
         32,                       //Colordepth of the framebuffer.
         0, 0, 0, 0, 0, 0,
@@ -112,8 +174,8 @@ void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigne
         0,
         0,
         0, 0, 0, 0,
-        32,                       //Number of bits for the depthbuffer
-        8,                        //Number of bits for the stencilbuffer
+        0,                       //Number of bits for the depthbuffer
+        0,                        //Number of bits for the stencilbuffer
         0,                        //Number of Aux buffers in the framebuffer.
         PFD_MAIN_PLANE,
         0,
@@ -147,7 +209,7 @@ void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigne
     g_window_resolution = size * scale + spacing * (size - 1);
     g_block_size = scale;
     wc.hInstance = h;
-    wc.lpfnWndProc = DefWindowProc;
+    wc.lpfnWndProc = window_proc;
     wc.hbrBackground = (HBRUSH)(COLOR_BACKGROUND);
     wc.lpszClassName = window_title;
     wc.style = CS_OWNDC;
@@ -189,6 +251,13 @@ void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigne
     g_projection_matrix[13] = 1;
     g_projection_matrix[14] = (near_plane+far_plane)/(near_plane-far_plane);
     g_projection_matrix[15] = 1;
+
+    LARGE_INTEGER li;
+    QueryPerformanceFrequency(&li);
+    g_counter_frequency = (double)(li.QuadPart)/1000.0;
+
+    QueryPerformanceCounter(&li);
+    g_counter_start = li.QuadPart;
 }
 
 void xdisp_deinit()
@@ -254,15 +323,38 @@ void xdisp_set(unsigned x, unsigned y, unsigned state)
 
     glUniformMatrix4fv(0, 1, GL_FALSE, (GLfloat*)g_projection_matrix);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+    glFlush();
     glDeleteBuffers(1, &geometry);
-}
-
-void xdisp_display()
-{
-    SwapBuffers(g_device_context);
 }
 
 int xdisp_is_window_open()
 {
     return IsWindow(g_window_handle);
+}
+
+int xdisp_up_held()
+{
+    return g_up;
+}
+
+int xdisp_left_held()
+{
+    return g_left;
+}
+
+int xdisp_right_held()
+{
+    return g_right;
+}
+
+int xdisp_down_held()
+{
+    return g_down;
+}
+
+float xdisp_time()
+{
+    LARGE_INTEGER li;
+    QueryPerformanceCounter(&li);
+    return (float)((double)(li.QuadPart - g_counter_start) / g_counter_frequency / 1000.0);
 }
