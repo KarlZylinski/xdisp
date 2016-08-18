@@ -31,7 +31,6 @@ static PFNGLGENBUFFERSPROC glGenBuffers;
 static PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
 static PFNGLLINKPROGRAMPROC glLinkProgram;
 static PFNGLSHADERSOURCEPROC glShaderSource;
-static PFNGLUNIFORM3FVPROC glUniform3fv;
 static PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
 static PFNGLUSEPROGRAMPROC glUseProgram;
 static PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
@@ -66,7 +65,6 @@ static void init_gl()
     GetExt(PFNGLGENVERTEXARRAYSPROC, glGenVertexArrays);
     GetExt(PFNGLLINKPROGRAMPROC, glLinkProgram);
     GetExt(PFNGLSHADERSOURCEPROC, glShaderSource);
-    GetExt(PFNGLUNIFORM3FVPROC, glUniform3fv);
     GetExt(PFNGLUNIFORMMATRIX4FVPROC, glUniformMatrix4fv);
     GetExt(PFNGLUSEPROGRAMPROC, glUseProgram);
     GetExt(PFNGLVERTEXATTRIBPOINTERPROC, glVertexAttribPointer);
@@ -150,7 +148,7 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     }
 }
 
-void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigned spacing, unsigned char cr, unsigned char cg, unsigned char cb)
+void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigned spacing)
 {
     g_up, g_down, g_left, g_right = 0;
     HINSTANCE h = GetModuleHandle(NULL);
@@ -184,8 +182,8 @@ void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigne
         "#version 410 core\n"
         "uniform mat4 projection_matrix;"
         "in vec2 in_position;"
-        "in float in_color;"
-        "out float v_color;"
+        "in vec3 in_color;"
+        "out vec3 v_color;"
         "void main()"
         "{"
             "v_color = in_color;"
@@ -194,12 +192,11 @@ void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigne
 
     static const char* fragment_shader = 
         "#version 410 core\n"
-        "uniform vec3 set_color;"
-        "in float v_color;"
+        "in vec3 v_color;"
         "out vec4 color;"
         "void main()"
         "{"
-            "color = vec4(set_color * v_color, 1);"
+            "color = vec4(v_color, 1);"
         "}";
 
     g_spacing = spacing;
@@ -223,9 +220,6 @@ void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigne
     glDisable(GL_DEPTH_TEST);
     glUseProgram(load_shader(vertex_shader, fragment_shader));
     glUniformMatrix4fv(0, 1, GL_FALSE, (GLfloat*)g_projection_matrix);
-
-    float set_color[3] = {(float)cr/255.0f, (float)cg/255.0f, (float)cb/255.0f};
-    glUniform3fv(1, 1, set_color);
 
     float near_plane = 0;
     float far_plane = 1.0f;
@@ -274,26 +268,25 @@ void xdisp_process_events()
     }
 }
 
-void xdisp_set(unsigned x, unsigned y, unsigned state)
+void xdisp_set(unsigned x, unsigned y, unsigned cr, unsigned cg, unsigned cb)
 {
     const unsigned ps = g_block_size;
-    const float c = (float)state;
     const unsigned sx = g_spacing * x;
     const unsigned sy = g_spacing * y;
-    const GLfloat buffer_data[18] = {
+    const GLfloat buffer_data[30] = {
         (float)(x * ps + sx), (float)(y * ps + sy),
-        (float)(c),
+        (float)(cr), (float)(cg), (float)(cb),
         (float)(x * ps + ps + sx), (float)(y * ps + sy),
-        (float)(c),
+        (float)(cr), (float)(cg), (float)(cb),
         (float)(x * ps + sx), (float)(y * ps + ps + sy),
-        (float)(c),
+        (float)(cr), (float)(cg), (float)(cb),
 
         (float)(x * ps + ps + sx), (float)(y * ps + sy),
-        (float)(c),
+        (float)(cr), (float)(cg), (float)(cb),
         (float)(x * ps + ps + sx), (float)(y * ps + ps + sy),
-        (float)(c),
+        (float)(cr), (float)(cg), (float)(cb),
         (float)(x * ps + sx), (float)(y * ps + ps + sy),
-        (float)(c)
+        (float)(cr), (float)(cg), (float)(cb)
     };
     GLuint geometry;
     glGenBuffers(1, &geometry);
@@ -307,16 +300,16 @@ void xdisp_set(unsigned x, unsigned y, unsigned state)
         2,
         GL_FLOAT,
         GL_FALSE,
-        3 * sizeof(float),
+        5 * sizeof(float),
         (void*)0);
 
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(
         1,
-        1,
+        3,
         GL_FLOAT,
         GL_FALSE,
-        3 * sizeof(float),
+        5 * sizeof(float),
         (void*)(2 * sizeof(float)));
 
     glUniformMatrix4fv(0, 1, GL_FALSE, (GLfloat*)g_projection_matrix);
