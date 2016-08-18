@@ -273,20 +273,23 @@ void xdisp_set(unsigned x, unsigned y, unsigned cr, unsigned cg, unsigned cb)
     const unsigned ps = g_block_size;
     const unsigned sx = g_spacing * x;
     const unsigned sy = g_spacing * y;
+    const float r = (float)(cr)/255.0f;
+    const float g = (float)(cg)/255.0f;
+    const float b = (float)(cb)/255.0f;
     const GLfloat buffer_data[30] = {
         (float)(x * ps + sx), (float)(y * ps + sy),
-        (float)(cr), (float)(cg), (float)(cb),
+        r, g, b,
         (float)(x * ps + ps + sx), (float)(y * ps + sy),
-        (float)(cr), (float)(cg), (float)(cb),
+        r, g, b,
         (float)(x * ps + sx), (float)(y * ps + ps + sy),
-        (float)(cr), (float)(cg), (float)(cb),
+        r, g, b,
 
         (float)(x * ps + ps + sx), (float)(y * ps + sy),
-        (float)(cr), (float)(cg), (float)(cb),
+        r, g, b,
         (float)(x * ps + ps + sx), (float)(y * ps + ps + sy),
-        (float)(cr), (float)(cg), (float)(cb),
+        r, g, b,
         (float)(x * ps + sx), (float)(y * ps + ps + sy),
-        (float)(cr), (float)(cg), (float)(cb)
+        r, g, b
     };
     GLuint geometry;
     glGenBuffers(1, &geometry);
