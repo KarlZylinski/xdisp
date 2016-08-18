@@ -99,7 +99,7 @@ static void key_down(int key)
     switch (key)
     {
         case VK_ESCAPE:
-            CloseWindow(g_window_handle);
+            SendMessage(g_window_handle, WM_CLOSE, 0, 0);
             break;
         case VK_UP:
             g_up = 1;
