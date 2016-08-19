@@ -236,7 +236,7 @@ void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigne
 
     g_projection_matrix[8] = 0;
     g_projection_matrix[9] = 0;
-    g_projection_matrix[10] = 2.0f/(far_plane/near_plane);
+    g_projection_matrix[10] = 0; //2.0f/(far_plane/near_plane);
     g_projection_matrix[11] = 0;
 
     g_projection_matrix[12] = -1;
@@ -344,6 +344,11 @@ int xdisp_right_held()
 int xdisp_down_held()
 {
     return g_down;
+}
+
+void xdisp_sleep(unsigned millis)
+{
+    Sleep(millis);
 }
 
 float xdisp_time()
