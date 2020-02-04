@@ -4,8 +4,10 @@ static HWND g_window_handle;
 static HDC g_device_context;
 static HGLRC g_rendering_context;
 static GLuint g_shader;
-static unsigned g_window_size;
-static unsigned g_window_resolution;
+static unsigned g_window_width;
+static unsigned g_window_height;
+static unsigned g_window_resolution_x;
+static unsigned g_window_resolution_y;
 static unsigned g_spacing;
 static unsigned g_block_size;
 static float g_projection_matrix[16];
@@ -138,17 +140,17 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     switch (message)
     {
     case WM_KEYDOWN:
-        key_down(wparam);
+        key_down((int)wparam);
         return 0;
     case WM_KEYUP:
-        key_up(wparam);
+        key_up((int)wparam);
         return 0;
     default:
         return DefWindowProc(hwnd, message, wparam, lparam);
     }
 }
 
-void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigned spacing)
+void xdisp_init(const char* window_title, unsigned width, unsigned height, unsigned scale, unsigned spacing)
 {
     g_up, g_down, g_left, g_right = 0;
     HINSTANCE h = GetModuleHandle(NULL);
@@ -200,8 +202,10 @@ void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigne
         "}";
 
     g_spacing = spacing;
-    g_window_size = size;
-    g_window_resolution = size * scale + spacing * (size - 1);
+    g_window_width = width;
+    g_window_height = height;
+    g_window_resolution_x = width * scale + spacing * (width - 1);
+    g_window_resolution_y = height * scale + spacing * (height - 1);
     g_block_size = scale;
     wc.hInstance = h;
     wc.lpfnWndProc = window_proc;
@@ -209,7 +213,7 @@ void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigne
     wc.lpszClassName = window_title;
     wc.style = CS_OWNDC;
     RegisterClass(&wc);
-    g_window_handle = CreateWindow(window_title, window_title, WS_OVERLAPPEDWINDOW | WS_VISIBLE, 0, 0, g_window_resolution + 2 * h_border_thickness + 1, g_window_resolution + 2 * v_border_thickness + caption_thickness, 0, 0, h, 0);
+    g_window_handle = CreateWindow(window_title, window_title, WS_OVERLAPPEDWINDOW | WS_VISIBLE, 200, 200, g_window_resolution_x + 2 * h_border_thickness + 1, g_window_resolution_y + 2 * v_border_thickness + caption_thickness, 0, 0, h, 0);
     g_device_context = GetDC(g_window_handle);
     SetPixelFormat(g_device_context, ChoosePixelFormat(g_device_context, &pfd), &pfd);
     g_rendering_context = wglCreateContext(g_device_context);
@@ -224,13 +228,13 @@ void xdisp_init(const char* window_title, unsigned size, unsigned scale, unsigne
     float near_plane = 0;
     float far_plane = 1.0f;
     
-    g_projection_matrix[0] = 2.0f/(g_window_resolution - 1.0f);
+    g_projection_matrix[0] = 2.0f/(g_window_resolution_x - 1.0f);
     g_projection_matrix[1] = 0;
     g_projection_matrix[2] = 0;
     g_projection_matrix[3] = 0;
 
     g_projection_matrix[4] = 0;
-    g_projection_matrix[5] = -2.0f/(g_window_resolution - 1.0f);
+    g_projection_matrix[5] = -2.0f/(g_window_resolution_y - 1.0f);
     g_projection_matrix[6] = 0;
     g_projection_matrix[7] = 0;
 
